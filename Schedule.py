@@ -2,13 +2,15 @@ import json
 import datetime 
 import os
 import io
+import Google
+import Parser
 
 
 # todo:
 # create schema for schedule.json and time_schedule.json
 # implement schema usage afterwards
 
-class schedule:
+class Schedule:
     weekdays = {0:"Понедельник",
                 1:"Вторник",
                 2:"Среда",
@@ -17,29 +19,41 @@ class schedule:
                 5:"Суббота",
                 6:"Воскресенье"}
     
-    def __init__(self,filename, time_filename) -> None:
+    def __init__(self,filename, time_filename,google_shared_sheet: Google.GoogleSharedSheet, parser: Parser.Parser) -> None:
         self.time_schedule_json = None
         self.filename = filename
         self.time_filename = time_filename
         self.json = None
+        self.google_sheet = google_shared_sheet
+        self.parser = parser
         
-        # initiating schedule from file
-        if not self.loadFromFile(filename):
-            # replace with sycnh from google drive or getting default from shcedule/schema.json after its done if drive failed
+        # initiating schedule from GoogleSharedSheet or from file
+        if self.synchronize():
+            pass
+        elif not self.loadFromFile(filename):
+            # replace with getting default from shcedule/schema.json after its done if synchronise failed 
             self.json = json.load("\{\}") 
-            self.filename = "schedule.json"
+            self.filename = "schedules/schedule.json"
+            self.save()
         self.loadTimeSchedule()
         print(f"schedule:{self.json}\n\ntime schedule:{self.time_schedule_json}\n\n")
 
     def loadTimeSchedule(self):
-        filename = "time_schedule.json"
-        if os.path.exists(filename):
-            file = io.open(filename, encoding='utf-8')
+        if os.path.exists(self.time_filename):
+            file = io.open(self.time_filename, encoding='utf-8', mode = 'r')
             #b4 loading the file check if its valid using schema.json for schedule after its done
             self.time_schedule_json = json.load(file)
             return True
         return False
     
+    def synchronize(self):
+        result = self.parser.parseToJson(self.google_sheet)
+        if result != None:
+            self.json = result
+            self.save()
+            return True
+        return False
+
     def loadFromFile(self,filename):
         if os.path.exists(filename):
             file = io.open(filename, encoding='utf-8')
@@ -82,13 +96,13 @@ class schedule:
 
     def getCurrentClasses(self,dt = datetime.datetime.now()):
         weekday = dt.weekday()
-        isOddWeek = schedule.isThisWeekOdd(dt)
+        isOddWeek = Schedule.isThisWeekOdd(dt)
         
         started, begins, ends, index = self.getCurrentClassesTime(dt)
         if weekday == 6 or started == None:
             return None, None, None, None, None
         info = None
-        weekdaystr = schedule.weekdays[weekday]
+        weekdaystr = Schedule.weekdays[weekday]
         for i in range(int(index),7):
             idx = str(i)
             begins,ends = self.getToodayClassesTimeByIndex(dt,idx)
@@ -106,9 +120,6 @@ class schedule:
                     break
         if info == None:
             return None, None, None, None, None
-
-
-
         return index, begins, ends, started, info
 
     def getYearStartDate(dt):
@@ -120,6 +131,6 @@ class schedule:
         return st
     
     def isThisWeekOdd(dt = datetime.datetime.now()):
-        delta = dt - schedule.getYearStartDate(dt)
+        delta = dt - Schedule.getYearStartDate(dt)
         return ((delta.days + 1) // 7 + (1 if (delta.days + 1) % 7 != 0 else 0))%2 == 1
 
