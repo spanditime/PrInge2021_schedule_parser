@@ -19,24 +19,17 @@ class Schedule:
                 5:"Суббота",
                 6:"Воскресенье"}
     
-    def __init__(self,filename, time_filename,google_shared_sheet: Google.GoogleSharedSheet, parser: Parser.Parser) -> None:
+    def __init__(self,filename, time_filename) -> None:
         self.time_schedule_json = None
         self.filename = filename
         self.time_filename = time_filename
         self.json = None
-        self.google_sheet = google_shared_sheet
-        self.parser = parser
         
         # initiating schedule from GoogleSharedSheet or from file
-        if self.synchronize():
-            pass
-        elif not self.loadFromFile(filename):
-            # replace with getting default from shcedule/schema.json after its done if synchronise failed 
-            self.json = json.load("\{\}") 
-            self.filename = "schedules/schedule.json"
-            self.save()
+        # if self.synchronize():
+        #     pass
+        self.loadFromFile(filename)
         self.loadTimeSchedule()
-        print(f"schedule:{self.json}\n\ntime schedule:{self.time_schedule_json}\n\n")
 
     def loadTimeSchedule(self):
         if os.path.exists(self.time_filename):
@@ -46,12 +39,12 @@ class Schedule:
             return True
         return False
     
-    def synchronize(self):
-        result = self.parser.parseToJson(self.google_sheet)
-        if result != None:
-            self.json = result
-            self.save()
-            return True
+    def synchronize(self,google_sheet,parser):
+        # result = parser.parseToJson(google_sheet)
+        # if result != None:
+        #     self.json = result
+        #     self.save()
+        #     return True
         return False
 
     def loadFromFile(self,filename):
@@ -85,7 +78,7 @@ class Schedule:
         for index in self.time_schedule_json:
             begins, ends = self.getToodayClassesTimeByIndex(dt, index)
             idx = int(index)
-            if (dt - begins) < datetime.timedelta(0):
+            if (dt - begins) <= datetime.timedelta(0):
                 break
             elif (dt - ends) <= datetime.timedelta(0):
                 started = True
@@ -115,7 +108,7 @@ class Schedule:
                     break
                 elif "ЧетНечет" in curr:
                     info = curr["ЧетНечет"]
-                    started = False if idx != index else started
+                    started = False if i != index else started
                     index = idx
                     break
         if info == None:
@@ -134,3 +127,12 @@ class Schedule:
         delta = dt - Schedule.getYearStartDate(dt)
         return ((delta.days + 1) // 7 + (1 if (delta.days + 1) % 7 != 0 else 0))%2 == 1
 
+
+
+sheet = Google.GoogleSharedSheet("1d3vlepJlRi2sxD9J8Le0GUz4mcRYugb2")
+parser = None
+schedule = Schedule("schedules/schedule.json","schedules/time_schedule.json")
+
+schedule.synchronize(sheet,parser)
+
+print(schedule.getCurrentClasses(datetime.datetime(2021,10,4,10,50)))
