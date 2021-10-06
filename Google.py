@@ -102,10 +102,13 @@ class GoogleSharedSheet:
         """
         self.convertSheet()
         result = self.sheet.get(spreadsheetId=self.sheet_id, includeGridData = True,ranges = [rg.string] ).execute()
-        print(rg.string)
         themeColors = result["properties"]["spreadsheetTheme"]["themeColors"]
-        sheet_id = result["sheets"][0]["properties"]["sheetId"]
-        rowData = result["sheets"][0]["data"][0]["rowData"]
-        merges = result["sheets"][0]["merges"]
+        sheet = result["sheets"][0]
+        sheet_id = sheet["properties"]["sheetId"]
+        rowData = sheet["data"][0]["rowData"]
+        merges = sheet["merges"]
+        startRow = sheet["data"][0]["startRow"]
+        startCol = sheet["data"][0]["startCol"]
+
         self.deleteConvertedSheet()
-        return sheet_id, rowData, merges, themeColors
+        return sheet_id, rowData, startRow, startCol, merges, themeColors
