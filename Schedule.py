@@ -11,19 +11,13 @@ import Parser
 # implement schema usage afterwards
 
 class Schedule:
-    weekdays = {0:"Понедельник",
-                1:"Вторник",
-                2:"Среда",
-                3:"Четверг",
-                4:"Пятница",
-                5:"Суббота",
-                6:"Воскресенье"}
     
-    def __init__(self,filename, time_filename) -> None:
+    def __init__(self,filename, time_filename, parser) -> None:
         self.time_schedule_json = None
         self.filename = filename
         self.time_filename = time_filename
         self.json = None
+        self.parser = parser
         
         # initiating schedule from GoogleSharedSheet or from file
         # if self.synchronize():
@@ -45,7 +39,7 @@ class Schedule:
         #     self.json = result
         #     self.save()
         #     return True
-        return False
+        return True
 
     def loadFromFile(self,filename):
         if os.path.exists(filename):
@@ -63,9 +57,9 @@ class Schedule:
     def save(self):
         self.saveToFile(self.filename)
     
-    def getToodayClassesTimeByIndex(self,dt,index):
-        begins_t = datetime.datetime.strptime(self.time_schedule_json[index]["begins"],"%H:%M").time()
-        ends_t   = datetime.datetime.strptime( self.time_schedule_json[index]["ends"] ,"%H:%M").time()
+    def getToodayClassesTimeByIndex(self,dt,index:int):
+        begins_t = datetime.datetime.strptime(self.time_schedule_json[str(index)]["begins"],"%H:%M").time()
+        ends_t   = datetime.datetime.strptime( self.time_schedule_json[str(index)]["ends"] ,"%H:%M").time()
         begins   = datetime.datetime(dt.year,dt.month,dt.day,begins_t.hour,begins_t.minute)
         ends     = datetime.datetime(dt.year,dt.month,dt.day,ends_t.hour,ends_t.minute)
         return begins,ends
@@ -86,31 +80,45 @@ class Schedule:
             elif index == '6':
                 return None, None, None, None
         return started, begins, ends, idx
-
-    def getCurrentClasses(self,dt = datetime.datetime.now()):
+    
+    def getToodayClasses(self,dt = datetime.datetime.now()):
         weekday = dt.weekday()
         isOddWeek = Schedule.isThisWeekOdd(dt)
-        
-        started, begins, ends, index = self.getCurrentClassesTime(dt)
-        if weekday == 6 or started == None:
-            return None, None, None, None, None
+        sched = {}
+        weekdaystr = self.parser.getWeekdayName(weekday)
         info = None
-        weekdaystr = Schedule.weekdays[weekday]
-        for i in range(int(index),7):
+        for i in range(1,len(self.time_schedule_json)+1):
             idx = str(i)
-            begins,ends = self.getToodayClassesTimeByIndex(dt,idx)
             if idx in self.json[weekdaystr]:
                 curr = self.json[weekdaystr][idx]
                 if ("Нечет" if isOddWeek else "Чет") in curr:
                     info = curr["Нечет" if isOddWeek else "Чет"]
-                    started = False if idx != index else started
-                    index = idx
-                    break
                 elif "ЧетНечет" in curr:
                     info = curr["ЧетНечет"]
-                    started = False if i != index else started
-                    index = idx
-                    break
+                else:
+                    info = None
+                sched[i]= info
+            else:
+                sched[i] = None
+        return sched
+
+
+    def getCurrentClasses(self,dt = datetime.datetime.now()):
+        weekday = dt.weekday()
+        isOddWeek = Schedule.isThisWeekOdd(dt)
+        started, begins, ends, index = self.getCurrentClassesTime(dt)
+        if weekday == 6 or started == None:
+            return None, None, None, None, None
+        info = None
+        idx = None
+        weekdaystr = self.parser.getWeekdayName(weekday)
+        for i,inf in self.getToodayClasses(dt).items():
+            begins,ends = self.getToodayClassesTimeByIndex(dt,i)
+            if inf != None:
+                info = inf
+                started = False if i != index else started
+                idx = i
+                break
         if info == None:
             return None, None, None, None, None
         return index, begins, ends, started, info
@@ -126,13 +134,3 @@ class Schedule:
     def isThisWeekOdd(dt = datetime.datetime.now()):
         delta = dt - Schedule.getYearStartDate(dt)
         return ((delta.days + 1) // 7 + (1 if (delta.days + 1) % 7 != 0 else 0))%2 == 1
-
-
-
-sheet = Google.GoogleSharedSheet("1d3vlepJlRi2sxD9J8Le0GUz4mcRYugb2")
-parser = None
-schedule = Schedule("schedules/schedule.json","schedules/time_schedule.json")
-
-schedule.synchronize(sheet,parser)
-
-print(schedule.getCurrentClasses(datetime.datetime(2021,10,4,10,50)))
