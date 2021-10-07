@@ -1,10 +1,10 @@
-import Google
-import Parser
-import Schedule
+from Google import GoogleSharedSheet
+from Parser import Parser
+from Schedule import Schedule
 from datetime import datetime
 
-sheet = Google.GoogleSharedSheet("1d3vlepJlRi2sxD9J8Le0GUz4mcRYugb2")
-parser = Parser.Parser()
+sheet = GoogleSharedSheet("1d3vlepJlRi2sxD9J8Le0GUz4mcRYugb2")
+parser = Parser()
 schedule = Schedule("schedules/schedule.json","schedules/time_schedule.json",parser)
 
 schedule.synchronize(sheet,parser)
