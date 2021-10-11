@@ -1,6 +1,6 @@
-from Google import GoogleSharedSheet
-from Parser import Parser
-from Schedule import Schedule
+from DubnaSchedule.Google import GoogleSharedSheet
+from DubnaSchedule.Parser import Parser
+from DubnaSchedule.Schedule import Schedule
 from datetime import datetime
 
 sheet = GoogleSharedSheet("1d3vlepJlRi2sxD9J8Le0GUz4mcRYugb2")
